@@ -6,21 +6,23 @@ const options = {
 };
 
 let mediaRecorder: MediaRecorder | null = null;
+let screenStream: MediaStream | null = null;
+
 
 async function startRecording() {
   try {
-    const stream = await navigator.mediaDevices.getDisplayMedia(options);
-    console.log(stream);
+    screenStream= await navigator.mediaDevices.getDisplayMedia(options);
+    console.log(screenStream);
 
 
     // this is the background encoder which is built into the browser
     // under the good this listens to the media stream and compresses frames 
     // and then produces encoded video chunks 
 
-
-    mediaRecorder = new MediaRecorder(stream, {
+    mediaRecorder = new MediaRecorder(screenStream, {
       mimeType: "video/webm",
     });
+
 
     const chunks: BlobPart[] = [];
 
@@ -43,10 +45,22 @@ async function startRecording() {
   }
 }
 
+async function stopRecording(){
+    try{
+        
+        mediaRecorder?.stop()
+        screenStream?.getTracks().forEach(track => track.stop());
+    }
+    catch(e){
+        console.log(e)
+    }
+}
+
 function Record() {
   return (
     <div>
       <button onClick={startRecording}>Start recording</button>
+      <button onClick={stopRecording}>Stop recording</button>
     </div>
   );
 }
