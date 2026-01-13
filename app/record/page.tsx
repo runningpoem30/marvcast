@@ -1,6 +1,9 @@
 "use client";
 import React from "react";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { useRouter } from "next/navigation";
+
 
 function Record() {
   const [isMicEnabled, setIsMicEnabled] = React.useState(true);
@@ -9,12 +12,19 @@ function Record() {
   startTrim: "",
   endTrim: ""
 });
+type TrimResult = {
+  videoId: string;
+  url: string;
+};
+const [trimResult, setTrimResult] = React.useState<TrimResult | null>(null);
+const [isTrimming, setIsTrimming] = React.useState(false);
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const screenStreamRef = React.useRef<MediaStream | null>(null);
   const micStreamRef = React.useRef<MediaStream | null>(null);
   const recordedBlobRef = React.useRef<Blob | null>(null);
-
+  
+  const router = useRouter()
 
 function onChange(e : React.ChangeEvent<HTMLInputElement>) {
   const { name, value } = e.target;
@@ -27,6 +37,7 @@ function onChange(e : React.ChangeEvent<HTMLInputElement>) {
 
 
  async function onSubmit(e : React.FormEvent<HTMLFormElement>){
+    
     e.preventDefault();
 
     if(!recordedBlobRef.current){
@@ -48,10 +59,22 @@ function onChange(e : React.ChangeEvent<HTMLInputElement>) {
     formDataFinal.append("trimStart", start.toString());
     formDataFinal.append("trimEnd", end.toString());
 
-  await fetch("/api/trim", {
+  const res = await fetch("/api/trim", {
     method: "POST",
     body: formDataFinal
   });
+
+  if (!res.ok) {
+   throw new Error("Trim failed");
+}
+ const data = await res.json();
+ setTrimResult(data);
+ 
+
+  setFormData({
+    startTrim : "",
+    endTrim: ""
+  })
   }
 
   async function startRecording() {
@@ -157,14 +180,18 @@ const Navbar = () => {
       </label>
 
       {previewUrl && (
-  <video
+  <video className="ml-40 mt-10"
     src={previewUrl}
     controls
     style={{ width: "100%", maxWidth: 600 }}
   />
 )}
+
+{
+    previewUrl ? <div className="lg:ml-40 lg:mt-20">
+ <h1 className="text-xl font-light">Trim your video  , Please Enter the start time and end time in seconds : </h1>       
 <form onSubmit={onSubmit}>
-  <input
+  <Input className='lg:w-75 h-15 placeholder:text-xl placeholder:font-lilex text-lg !text-xl font-lilex mb-5'
     type="number"
     placeholder="Start time (seconds)"
     name="startTrim"
@@ -172,7 +199,7 @@ const Navbar = () => {
     onChange={onChange}
   />
 
-  <input
+  <Input className='lg:w-75 h-15 placeholder:text-xl placeholder:font-lilex text-lg !text-xl font-lilex mb-5 ml-5'
     type="number"
     placeholder="End time (seconds)"
     name="endTrim"
@@ -180,8 +207,15 @@ const Navbar = () => {
     onChange={onChange}
   />
 
-  <button type="submit">Send</button>
-</form>
+  <Button type="submit" className="border border-gray-400 cursor-pointer ml-5 lg:px-6 lg:py-6 text-xl font-light">Send</Button>
+</form></div> : <div className="text-2xl font-light lg:ml-40 lg:mt-5">your recorded video will be previewed here : </div>
+}
+<div></div>
+{
+    trimResult ? <div> <Button  variant="outline" onClick={() => router.push(`/videos/${trimResult.videoId}`)}
+  className="lg:px-6 lg:py-7 font-lilex font-light lg:text-xl flex items-center gap-2 lg:[&_svg]:h-8 lg:[&_svg]:w-8 cursor-pointer lg:ml-40" >Check Trimmed Video</Button></div> : <h2></h2>
+}
+
 
 
     </div>

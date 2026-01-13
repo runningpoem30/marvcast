@@ -9,11 +9,11 @@ export default function Page({ params }: PageProps) {
 
   return (
     <div>
-      <h1>Video Preview</h1>
+      <h1 text-xl>Video Preview :</h1>
       <video
         src={`/videos/${videoId}`}
         controls
-        style={{ width: "100%", maxWidth: 700 }}
+        style={{ width: "50%", maxWidth: 500 }}
       />
     </div>
   );
