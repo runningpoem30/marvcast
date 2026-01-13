@@ -3,6 +3,10 @@ import React from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useRouter } from "next/navigation";
+import { trimVideo } from "../helpers/video";
+
+
+
 
 
 function Record() {
@@ -53,15 +57,18 @@ function onChange(e : React.ChangeEvent<HTMLInputElement>) {
     return;
 }
 
-    const formDataFinal = new FormData(); 
+    const trimmedBlob = await trimVideo(
+        recordedBlobRef.current,
+        start,
+        end
+    )
 
-    formDataFinal.append("video", recordedBlobRef.current, "recording.webm");
-    formDataFinal.append("trimStart", start.toString());
-    formDataFinal.append("trimEnd", end.toString());
+    const fd = new FormData();
+    fd.append("video" , trimmedBlob , "trimmed.webm")
 
-  const res = await fetch("/api/trim", {
+  const res = await fetch("/api/upload", {
     method: "POST",
-    body: formDataFinal
+    body: fd
   });
 
   if (!res.ok) {
@@ -167,7 +174,7 @@ const Navbar = () => {
     
 
     
-
+  
 
 
       <label className="lg:ml-40 lg:mt-10">
