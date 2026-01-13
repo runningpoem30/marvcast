@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Button } from "../ui/button";
 
 function Record() {
   const [isMicEnabled, setIsMicEnabled] = React.useState(true);
@@ -114,19 +115,47 @@ function onChange(e : React.ChangeEvent<HTMLInputElement>) {
     micStreamRef.current?.getTracks().forEach(t => t.stop());
   }
 
-  return (
-    <div>
-      <button onClick={startRecording}>Start recording</button>
-      <button onClick={stopRecording}>Stop recording</button>
 
-      <label>
+
+const Navbar = () => {
+  return (
+    <nav className="flex w-full items-center justify-between border-t border-b border-neutral-200 px-4 py-4 dark:border-neutral-800">
+      <div className="flex items-center gap-2">
+        <div className="size-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500" />
+        <h1 className="text-base font-bold md:text-2xl">MARVCLIP</h1>
+      </div>
+    </nav>
+  );
+};
+
+  return (
+
+    <div>
+        <Navbar/>
+        <div className="flex flex-row gap-x-10 lg:ml-40 ml-15 mt-20">
+              <Button   variant="outline"
+  className="lg:px-6 lg:py-7 font-lilex font-light lg:text-xl flex items-center gap-2 lg:[&_svg]:h-8 lg:[&_svg]:w-8 cursor-pointer" onClick={startRecording}>Start recording</Button>
+
+
+      <Button  variant="outline"
+  className="lg:px-6 lg:py-7 font-lilex font-light lg:text-xl flex items-center gap-2 lg:[&_svg]:h-8 lg:[&_svg]:w-8 cursor-pointer" onClick={stopRecording}>Stop recording</Button>
+
+        </div>
+    
+
+    
+
+
+
+      <label className="lg:ml-40 lg:mt-10">
         <input
           type="checkbox"
           checked={isMicEnabled}
           onChange={() => setIsMicEnabled(v => !v)}
         />
-        Mic
+        Enable Mic ? 
       </label>
+
       {previewUrl && (
   <video
     src={previewUrl}
