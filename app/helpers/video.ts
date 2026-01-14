@@ -1,15 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// This file loads FFmpeg entirely from CDN via script tags
-// to bypass Next.js/Turbopack bundler issues
+// This file loads FFmpeg from local public folder to avoid CORS issues
 
 let ffmpegInstance: any = null;
 let ffmpegLoaded = false;
 let ffmpegLoading: Promise<void> | null = null;
-
-const FFMPEG_CDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js";
-const FFMPEG_UTIL_CDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.min.js";
-const FFMPEG_CORE_CDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -44,20 +39,18 @@ async function loadFFmpeg(): Promise<void> {
 
   ffmpegLoading = (async () => {
     try {
-      console.log("Loading FFmpeg scripts from CDN...");
+      console.log("Loading FFmpeg from local files...");
 
-      // Load FFmpeg and util scripts
-      await loadScript(FFMPEG_UTIL_CDN);
-      await loadScript(FFMPEG_CDN);
+      // Load FFmpeg script from local public folder
+      await loadScript("/ffmpeg/ffmpeg.min.js");
 
-      console.log("Scripts loaded, initializing FFmpeg...");
+      console.log("Script loaded, initializing FFmpeg...");
 
       // Access FFmpeg from global scope
       const FFmpegWASM = (window as any).FFmpegWASM;
-      const FFmpegUtil = (window as any).FFmpegUtil;
 
-      if (!FFmpegWASM || !FFmpegUtil) {
-        throw new Error("FFmpeg scripts not loaded properly");
+      if (!FFmpegWASM) {
+        throw new Error("FFmpeg script not loaded properly");
       }
 
       ffmpegInstance = new FFmpegWASM.FFmpeg();
@@ -70,10 +63,11 @@ async function loadFFmpeg(): Promise<void> {
         console.log("[FFmpeg Progress]", Math.round(progress * 100) + "%");
       });
 
-      // Load the core from CDN
+      // Load the core and worker from local files
       await ffmpegInstance.load({
-        coreURL: `${FFMPEG_CORE_CDN}/ffmpeg-core.js`,
-        wasmURL: `${FFMPEG_CORE_CDN}/ffmpeg-core.wasm`,
+        coreURL: "/ffmpeg/ffmpeg-core.js",
+        wasmURL: "/ffmpeg/ffmpeg-core.wasm",
+        workerURL: "/ffmpeg/814.ffmpeg.js",
       });
 
       ffmpegLoaded = true;
