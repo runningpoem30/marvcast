@@ -14,7 +14,8 @@ export async function getFFmpeg() {
     ffmpeg = new FFmpeg();
 
     await ffmpeg.load({
-      coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js",
+       coreURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js",
+       wasmURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.wasm"
     });
   }
 
