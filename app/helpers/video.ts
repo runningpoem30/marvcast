@@ -6,7 +6,9 @@ let ffmpegLoaded = false;
 let ffmpegLoading: Promise<void> | null = null;
 
 const FFMPEG_CORE_VERSION = "0.12.6";
-const BASE_URL = `https://unpkg.com/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
+const FFMPEG_VERSION = "0.12.10";
+const CORE_BASE_URL = `https://unpkg.com/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
+const FFMPEG_BASE_URL = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm`;
 
 async function loadFFmpeg() {
   if (typeof window === "undefined") {
@@ -39,17 +41,23 @@ async function loadFFmpeg() {
 
       console.log("Loading FFmpeg from CDN...");
 
-      // Load from CDN with blob URLs to avoid CORS issues
-      const coreURL = await toBlobURL(`${BASE_URL}/ffmpeg-core.js`, "text/javascript");
-      const wasmURL = await toBlobURL(`${BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
+      // Load all required files from CDN with blob URLs
+      const [coreURL, wasmURL, workerURL] = await Promise.all([
+        toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript"),
+        toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm"),
+        toBlobURL(`${FFMPEG_BASE_URL}/814.ffmpeg.js`, "text/javascript"),
+      ]);
+
+      console.log("CDN files loaded, initializing FFmpeg...");
 
       await ffmpeg.load({
         coreURL,
         wasmURL,
+        workerURL,
       });
 
       ffmpegLoaded = true;
-      console.log("FFmpeg loaded successfully from CDN");
+      console.log("FFmpeg loaded successfully!");
     } catch (error) {
       console.error("FFmpeg load error:", error);
       ffmpeg = null;
