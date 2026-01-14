@@ -1,13 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Disable Turbopack for production builds (use webpack)
-  // This fixes dynamic import issues with @ffmpeg packages
-  experimental: {
-    turbo: {
-      // Externalize ffmpeg packages to avoid bundling issues
-    },
-  },
+  // Empty turbopack config to allow webpack config
+  turbopack: {},
 
   // Webpack configuration for handling ffmpeg
   webpack: (config, { isServer }) => {
@@ -16,7 +11,7 @@ const nextConfig: NextConfig = {
       config.externals = [...(config.externals || []), "@ffmpeg/ffmpeg", "@ffmpeg/util"];
     }
 
-    // Add headers for SharedArrayBuffer support (required by FFmpeg)
+    // Add fallbacks for node modules not available in browser
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
