@@ -5,10 +5,8 @@ let ffmpeg: FFmpeg | null = null;
 let ffmpegLoaded = false;
 let ffmpegLoading: Promise<void> | null = null;
 
-const FFMPEG_CORE_VERSION = "0.12.6";
-const FFMPEG_VERSION = "0.12.10";
-const CORE_BASE_URL = `https://unpkg.com/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
-const FFMPEG_BASE_URL = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm`;
+// Use jsDelivr which has better CORS support
+const BASE_URL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm";
 
 async function loadFFmpeg() {
   if (typeof window === "undefined") {
@@ -41,19 +39,16 @@ async function loadFFmpeg() {
 
       console.log("Loading FFmpeg from CDN...");
 
-      // Load all required files from CDN with blob URLs
-      const [coreURL, wasmURL, workerURL] = await Promise.all([
-        toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript"),
-        toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm"),
-        toBlobURL(`${FFMPEG_BASE_URL}/814.ffmpeg.js`, "text/javascript"),
-      ]);
+      // Load core files from jsDelivr CDN
+      const coreURL = await toBlobURL(`${BASE_URL}/ffmpeg-core.js`, "text/javascript");
+      const wasmURL = await toBlobURL(`${BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
 
       console.log("CDN files loaded, initializing FFmpeg...");
 
+      // Load without workerURL to use single-threaded mode
       await ffmpeg.load({
         coreURL,
         wasmURL,
-        workerURL,
       });
 
       ffmpegLoaded = true;
