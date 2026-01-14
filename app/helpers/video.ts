@@ -2,24 +2,28 @@ import { fetchFile } from "@ffmpeg/util";
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 
 let ffmpeg: FFmpeg | null = null;
+let ffmpegLoading: Promise<void> | null = null;
 
-export async function getFFmpeg() {
+async function loadFFmpeg() {
   if (typeof window === "undefined") {
-    throw new Error("FFmpeg can only run in the browser");
+    throw new Error("FFmpeg can only run in browser");
   }
 
-  if (!ffmpeg) {
-    const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+  if (ffmpeg) return;
 
-    ffmpeg = new FFmpeg();
+  if (!ffmpegLoading) {
+    ffmpegLoading = (async () => {
+      const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+      ffmpeg = new FFmpeg();
 
-    await ffmpeg.load({
+      await ffmpeg.load({
         coreURL: "/ffmpeg/ffmpeg-core.js",
-  wasmURL: "/ffmpeg/ffmpeg-core.wasm",
-    });
+        wasmURL: "/ffmpeg/ffmpeg-core.wasm",
+      });
+    })();
   }
 
-  return ffmpeg;
+  await ffmpegLoading;
 }
 
 export async function trimVideo(
@@ -27,31 +31,30 @@ export async function trimVideo(
   start: number,
   end: number
 ): Promise<Blob> {
-  const ffmpeg = await getFFmpeg();
+  await loadFFmpeg(); // ✅ GUARANTEED load
+
+  if (!ffmpeg) throw new Error("FFmpeg not initialized");
 
   await ffmpeg.writeFile("input.webm", await fetchFile(inputBlob));
 
   await ffmpeg.exec([
+    "-i", "input.webm",
     "-ss", `${start}`,
     "-to", `${end}`,
-    "-i", "input.webm",
     "-c", "copy",
     "output.webm",
   ]);
 
   const data = await ffmpeg.readFile("output.webm");
 
-
   const uint8 =
-  typeof data === "string"
-    ? new TextEncoder().encode(data)
-    : data;
+    typeof data === "string"
+      ? new TextEncoder().encode(data)
+      : data;
 
-// Step 2: create a NEW ArrayBuffer (this is the key)
-const arrayBuffer = new ArrayBuffer(uint8.byteLength);
-const view = new Uint8Array(arrayBuffer);
-view.set(uint8);
+  const arrayBuffer = new ArrayBuffer(uint8.byteLength);
+  new Uint8Array(arrayBuffer).set(uint8);
 
-// Step 3: Blob from safe ArrayBuffer
-return new Blob([arrayBuffer], { type: "video/webm" });
+  return new Blob([arrayBuffer], { type: "video/webm" });
 }
+
