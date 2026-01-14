@@ -106,12 +106,14 @@ export async function trimVideo(
   const inputData = await fetchFileAsUint8Array(inputBlob);
   await ffmpegInstance.writeFile("input.webm", inputData);
 
-  console.log("Running FFmpeg exec...");
+  console.log("Running FFmpeg exec (re-encoding for accurate trim)...");
   await ffmpegInstance.exec([
     "-i", "input.webm",
     "-ss", `${start}`,
     "-to", `${end}`,
-    "-c", "copy",
+    "-c:v", "libvpx",
+    "-c:a", "copy",
+    "-b:v", "1M",
     "output.webm",
   ]);
 
