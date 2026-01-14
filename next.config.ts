@@ -21,11 +21,12 @@ const nextConfig: NextConfig = {
     return config;
   },
 
-  // Headers for SharedArrayBuffer (needed by FFmpeg WASM)
+  // Headers - use credentialless COEP to allow cross-origin resources
   async headers() {
     return [
       {
-        source: "/(.*)",
+        // Only apply strict headers to the record page where FFmpeg runs
+        source: "/record",
         headers: [
           {
             key: "Cross-Origin-Opener-Policy",
@@ -33,7 +34,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Cross-Origin-Embedder-Policy",
-            value: "require-corp",
+            value: "credentialless",
           },
         ],
       },
