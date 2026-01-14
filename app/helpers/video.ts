@@ -1,61 +1,86 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { toBlobURL, fetchFile } from "@ffmpeg/util";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-let ffmpeg: FFmpeg | null = null;
+// This file loads FFmpeg entirely from CDN via script tags
+// to bypass Next.js/Turbopack bundler issues
+
+let ffmpegInstance: any = null;
 let ffmpegLoaded = false;
 let ffmpegLoading: Promise<void> | null = null;
 
-// Use jsDelivr which has better CORS support
-const BASE_URL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm";
+const FFMPEG_CDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js";
+const FFMPEG_UTIL_CDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.min.js";
+const FFMPEG_CORE_CDN = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
 
-async function loadFFmpeg() {
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function loadFFmpeg(): Promise<void> {
   if (typeof window === "undefined") {
     throw new Error("FFmpeg can only run in browser");
   }
 
-  // If already loaded, return immediately
-  if (ffmpeg && ffmpegLoaded) {
+  if (ffmpegInstance && ffmpegLoaded) {
     return;
   }
 
-  // If currently loading, wait for it
   if (ffmpegLoading) {
     await ffmpegLoading;
     return;
   }
 
-  // Start loading
   ffmpegLoading = (async () => {
     try {
-      ffmpeg = new FFmpeg();
+      console.log("Loading FFmpeg scripts from CDN...");
 
-      ffmpeg.on("log", ({ message }) => {
+      // Load FFmpeg and util scripts
+      await loadScript(FFMPEG_UTIL_CDN);
+      await loadScript(FFMPEG_CDN);
+
+      console.log("Scripts loaded, initializing FFmpeg...");
+
+      // Access FFmpeg from global scope
+      const FFmpegWASM = (window as any).FFmpegWASM;
+      const FFmpegUtil = (window as any).FFmpegUtil;
+
+      if (!FFmpegWASM || !FFmpegUtil) {
+        throw new Error("FFmpeg scripts not loaded properly");
+      }
+
+      ffmpegInstance = new FFmpegWASM.FFmpeg();
+
+      ffmpegInstance.on("log", ({ message }: { message: string }) => {
         console.log("[FFmpeg]", message);
       });
 
-      ffmpeg.on("progress", ({ progress }) => {
+      ffmpegInstance.on("progress", ({ progress }: { progress: number }) => {
         console.log("[FFmpeg Progress]", Math.round(progress * 100) + "%");
       });
 
-      console.log("Loading FFmpeg from CDN...");
-
-      // Load core files from jsDelivr CDN
-      const coreURL = await toBlobURL(`${BASE_URL}/ffmpeg-core.js`, "text/javascript");
-      const wasmURL = await toBlobURL(`${BASE_URL}/ffmpeg-core.wasm`, "application/wasm");
-
-      console.log("CDN files loaded, initializing FFmpeg...");
-
-      // Load without workerURL to use single-threaded mode
-      await ffmpeg.load({
-        coreURL,
-        wasmURL,
+      // Load the core from CDN
+      await ffmpegInstance.load({
+        coreURL: `${FFMPEG_CORE_CDN}/ffmpeg-core.js`,
+        wasmURL: `${FFMPEG_CORE_CDN}/ffmpeg-core.wasm`,
       });
 
       ffmpegLoaded = true;
       console.log("FFmpeg loaded successfully!");
     } catch (error) {
       console.error("FFmpeg load error:", error);
-      ffmpeg = null;
+      ffmpegInstance = null;
       ffmpegLoaded = false;
       ffmpegLoading = null;
       throw error;
@@ -63,6 +88,11 @@ async function loadFFmpeg() {
   })();
 
   await ffmpegLoading;
+}
+
+async function fetchFileAsUint8Array(blob: Blob): Promise<Uint8Array> {
+  const arrayBuffer = await blob.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
 }
 
 export async function trimVideo(
@@ -74,15 +104,16 @@ export async function trimVideo(
 
   await loadFFmpeg();
 
-  if (!ffmpeg || !ffmpegLoaded) {
+  if (!ffmpegInstance || !ffmpegLoaded) {
     throw new Error("FFmpeg not initialized");
   }
 
   console.log("Writing input file...");
-  await ffmpeg.writeFile("input.webm", await fetchFile(inputBlob));
+  const inputData = await fetchFileAsUint8Array(inputBlob);
+  await ffmpegInstance.writeFile("input.webm", inputData);
 
   console.log("Running FFmpeg exec...");
-  await ffmpeg.exec([
+  await ffmpegInstance.exec([
     "-i", "input.webm",
     "-ss", `${start}`,
     "-to", `${end}`,
@@ -91,12 +122,12 @@ export async function trimVideo(
   ]);
 
   console.log("Reading output file...");
-  const data = await ffmpeg.readFile("output.webm");
+  const data = await ffmpegInstance.readFile("output.webm");
 
   // Clean up
   try {
-    await ffmpeg.deleteFile("input.webm");
-    await ffmpeg.deleteFile("output.webm");
+    await ffmpegInstance.deleteFile("input.webm");
+    await ffmpegInstance.deleteFile("output.webm");
   } catch (e) {
     // Ignore cleanup errors
   }
@@ -106,9 +137,6 @@ export async function trimVideo(
       ? new TextEncoder().encode(data)
       : data;
 
-  const arrayBuffer = new ArrayBuffer(uint8.byteLength);
-  new Uint8Array(arrayBuffer).set(uint8);
-
-  console.log("Trim complete, output size:", arrayBuffer.byteLength);
-  return new Blob([arrayBuffer], { type: "video/webm" });
+  console.log("Trim complete, output size:", uint8.byteLength);
+  return new Blob([uint8], { type: "video/webm" });
 }
